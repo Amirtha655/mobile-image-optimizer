@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: Serverless image optimization pipeline - S3 trigger -> Lambda -> optimized output
+
+Resources:
+
+  ImageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "img-opt-${AWS::AccountId}-${AWS::Region}"
+
+  ImageOptimizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-image-optimizer"
+      CodeUri: image_processor/
+      Handler: app.lambda_handler
+      Runtime: python3.13
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          BUCKET_NAME: !Sub "img-opt-${AWS::AccountId}-${AWS::Region}"
+          OUTPUT_PREFIX: optimized-delivery/
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Sub "img-opt-${AWS::AccountId}-${AWS::Region}"
+        - S3WritePolicy:
+            BucketName: !Sub "img-opt-${AWS::AccountId}-${AWS::Region}"
+      Events:
+        S3UploadEvent:
+          Type: S3
+          Properties:
+            Bucket: !Ref ImageBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: raw-uploads/
+
+Outputs:
+  BucketName:
+    Description: S3 bucket for raw uploads and optimized delivery
+    Value: !Ref ImageBucket
+
+  FunctionArn:
+    Description: ARN of the image optimizer Lambda function
+    Value: !GetAtt ImageOptimizerFunction.Arn
+
+  UploadPrefix:
+    Description: Upload images here to trigger optimization
+    Value: !Sub "s3://img-opt-${AWS::AccountId}-${AWS::Region}/raw-uploads/"
+
+  OutputPrefix:
+    Description: Optimized images are written here
+    Value: !Sub "s3://img-opt-${AWS::AccountId}-${AWS::Region}/optimized-delivery/"

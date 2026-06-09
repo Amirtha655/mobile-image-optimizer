@@ -1,0 +1,14 @@
+# SAM build output
+.aws-sam/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# AWS credentials (never commit these)
+samconfig.toml
+
+# PDF generator script (optional - remove if you want it tracked)
+generate_pdf.py
